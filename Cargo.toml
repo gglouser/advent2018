@@ -4,6 +4,7 @@ version = "0.1.0"
 authors = ["Grant Glouser <gglouser@gmail.com>"]
 
 [dependencies]
+regex = "1.1.0"
 
 [features]
 test_real_input = []
