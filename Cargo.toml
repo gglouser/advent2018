@@ -1,0 +1,9 @@
+[package]
+name = "advent2018"
+version = "0.1.0"
+authors = ["Grant Glouser <gglouser@gmail.com>"]
+
+[dependencies]
+
+[features]
+test_real_input = []
