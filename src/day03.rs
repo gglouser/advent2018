@@ -1,7 +1,5 @@
 use std::collections::HashSet;
-
-extern crate regex;
-use self::regex::Regex;
+use regex::Regex;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 struct Claim {
