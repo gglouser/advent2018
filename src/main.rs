@@ -9,7 +9,7 @@ mod day01;
 mod day02;
 mod day03;
 mod day04;
-// mod day05;
+mod day05;
 // mod day06;
 // mod day07;
 // mod day08;
@@ -75,7 +75,7 @@ fn main() {
         "day02" => day02::run(&input),
         "day03" => day03::run(&input),
         "day04" => day04::run(&input),
-        // "day05" => day05::run(&input),
+        "day05" => day05::run(&input),
         // "day06" => day06::run(&input),
         // "day07" => day07::run(&input),
         // "day08" => day08::run(&input),
