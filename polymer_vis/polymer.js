@@ -6,6 +6,8 @@ const BASE_SCALE = 0.9999;
 const SUBTREE_ANGLE = -0.4;
 const SUBTREE_SCALE = 0.96;
 
+const IGNORE_UNIT = 'c';
+
 function test_react(a, b) {
     return a != b && a.toLowerCase() == b.toLowerCase();
 }
@@ -62,7 +64,7 @@ function draw_nodes(ctx, nodes, theta, scale, color) {
 }
 
 function init() {
-    const nodes = collapse(POLYMER_STRING, 'o');
+    const nodes = collapse(POLYMER_STRING, IGNORE_UNIT);
     console.debug(nodes.length);
 
     const canvas = document.getElementById('main');
