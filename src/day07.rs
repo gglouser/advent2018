@@ -10,31 +10,35 @@ fn parse_input(s: &str) -> Vec<(u8, u8)> {
     }).collect()
 }
 
+fn init_ready(task_spec: &[(u8, u8)]) -> BinaryHeap<Reverse<u8>> {
+    let mut pres = HashSet::new();
+    let mut deps = HashSet::new();
+    for &(pre, dep) in task_spec.iter() {
+        pres.insert(pre);
+        deps.insert(dep);
+    }
+    pres.difference(&deps).map(|&s| Reverse(s)).collect()
+}
+
+fn init_pending(task_spec: &[(u8, u8)]) -> HashMap<u8, HashSet<u8>> {
+    let mut pending = HashMap::new();
+    for &(pre, dep) in task_spec.iter() {
+        (*pending.entry(dep).or_insert(HashSet::new())).insert(pre);
+    }
+    pending
+}
+
 fn execute<F>(task_spec: &[(u8,u8)], workers: u32, step_time_f: F) -> (String, usize)
     where F: Fn(u8) -> usize
 {
-    let mut prereqs = HashMap::new();
-    let mut side_a = HashSet::new();
-    let mut side_b = HashSet::new();
-    for &(pre, dep) in task_spec.iter() {
-        (*prereqs.entry(dep).or_insert(vec![])).push(pre);
-        side_a.insert(pre);
-        side_b.insert(dep);
-    }
-
-    let mut ready: BinaryHeap<_> = side_a.difference(&side_b).map(|&s| Reverse(s)).collect();
-    let mut not_ready: HashSet<u8> = side_a.union(&side_b).cloned().collect();
-    for Reverse(s) in ready.iter() {
-        not_ready.remove(s);
-    }
-
-    let mut result = String::new();
-    let mut done = HashSet::new();
+    let mut ready = init_ready(task_spec);
+    let mut pending = init_pending(task_spec);
     let mut in_progress = BinaryHeap::new();
     let mut workers_avail = workers;
     let mut t = 0;
+    let mut result = String::new();
 
-    while !(ready.is_empty() && in_progress.is_empty()) {
+    while !ready.is_empty() || !in_progress.is_empty() {
         // Start jobs
         while workers_avail > 0 {
             if let Some(Reverse(step)) = ready.pop() {
@@ -46,21 +50,20 @@ fn execute<F>(task_spec: &[(u8,u8)], workers: u32, step_time_f: F) -> (String, u
         }
 
         // Advance time; finish next job
-        if let Some(Reverse((next_t,completed))) = in_progress.pop() {
+        if let Some(Reverse((next_t, completed))) = in_progress.pop() {
             t = next_t;
             result.push(char::from(completed));
-            done.insert(completed);
             workers_avail += 1;
+            for prereqs in pending.values_mut() {
+                prereqs.remove(&completed);
+            }
         }
 
         // Ready new jobs
-        let to_ready: Vec<u8> = not_ready.iter()
-            .filter(|&s| prereqs[&s].iter().all(|p| done.contains(&p)))
-            .cloned().collect();
-        for s in to_ready {
-            not_ready.remove(&s);
-            ready.push(Reverse(s));
-        }
+        let (to_ready, still_pending): (HashMap<_,_>,_) = pending.into_iter()
+            .partition(|(_,prereqs)| prereqs.is_empty());
+        ready.extend(to_ready.into_iter().map(|(step,_)| Reverse(step)));
+        pending = still_pending;
     }
 
     (result, t)

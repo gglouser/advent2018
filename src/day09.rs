@@ -77,18 +77,18 @@ pub fn run(input: &str) {
 mod tests {
     use super::*;
 
-    const EXAMPLE : &'static str = "5 players; last marble is worth 25 points\n";
+    const EXAMPLE : &'static str = "9 players; last marble is worth 25 points\n";
 
     #[test]
     fn parsing() {
-        assert_eq!(parse_input(EXAMPLE), (5, 25));
+        assert_eq!(parse_input(EXAMPLE), (9, 25));
     }
 
     #[test]
     fn example() {
         let (part1, part2) = solve(EXAMPLE);
         assert_eq!(32, part1);
-        assert_eq!(37923, part2);
+        assert_eq!(22563, part2);
     }
 
     #[test]
