@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>Polymer Visualization</title>
-    <script src="input.js"></script>
+    <title>Day 8 - License Tree Viewer</title>
+    <!-- <script src="input_08.js"></script> -->
     <script src="util.js"></script>
-    <script src="polymer.js"></script>
+    <script src="license_tree.js"></script>
     <link href="style.css" rel="stylesheet" type="text/css">
   </head>
   <body>
@@ -12,16 +12,18 @@
     <div id="controls">
       <div>base weight: <input id="base_weight" type="text"></div>
       <div>step size: <input id="step_size" type="text"></div>
+      <div>start angle: <input id="start_angle" type="text"></div>
       <div>base angle: <input id="base_angle" type="text"></div>
       <div>base scale: <input id="base_scale" type="text"></div>
       <div>branch angle: <input id="branch_angle" type="text"></div>
-      <div>subtree bend: <input id="subtree_angle_mult" type="text"></div>
-      <div>subtree scale: <input id="subtree_scale" type="text"></div>
-
+      <div>branch scale: <input id="branch_scale" type="text"></div>
+      <div>metadata scale: <input id="metadata_scale" type="text"></div>
+      <div>interpret metadata (part 2): <input id="metadata_part2" type="checkbox"></div>
+      <div>metadata nubs (part 2 only): <input id="metadata_stubs" type="checkbox"></div>
       <div>base color: <input id="base_color" type="color"></div>
-      <div>subtree color: <input id="subtree_color" type="color"></div>
-      <div>removed color: <input id="ignored_color" type="color"></div>
+      <div>metadata color: <input id="metadata_color" type="color"></div>
       <div>background color: <input id="background_color" type="color"></div>
+      <div>license tree file: <input id="license_file" type="file"></div>
     </div>
   </body>
 </html>
