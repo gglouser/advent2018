@@ -209,18 +209,9 @@ function init() {
     link_param_control(view, 'metadata_color');
     link_param_control(view, 'background_color');
 
-    const lic_file = document.getElementById('license_file');
-    lic_file.addEventListener('change', (event) => {
-        if (event.target.files.length > 0) {
-            const file = event.target.files[0];
-            console.log('using license file', file.name);
-            const reader = new FileReader();
-            reader.onload = (read_event) => {
-                view.root = parse_license(read_event.target.result);
-                view.draw();
-            };
-            reader.readAsText(file);
-        }
+    simple_file_loader('license_file', (new_lic) => {
+        view.root = parse_license(new_lic);
+        view.draw();
     });
 
     track_mouse(canvas, (dx, dy) => {

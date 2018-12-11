@@ -1,3 +1,4 @@
+const BASE_WEIGHT = 2;
 const START_X = 0;
 const START_Y = -150;
 const ZOOM = 1;
@@ -13,15 +14,15 @@ const SUBTREE_SCALE = 0.96;
 const BACKGROUND_COLOR = '#f8f0e0';
 const BASE_COLOR = '#804818';
 const SUBTREE_COLOR = '#008000';
-const IGNORED_COLOR = '#ff0000';
+const REMOVED_COLOR = '#ff0000';
 
 // electric weirdness
 // const BACKGROUND_COLOR = '#000000';
 // const BASE_COLOR = '#ffc0c0';
 // const SUBTREE_COLOR = '#c0ffff';
-// const IGNORED_COLOR = '#ffc0f0';
+// const REMOVED_COLOR = '#ffc0f0';
 
-const IGNORE_UNIT = 'c';
+const IGNORE_UNIT = '';
 
 function test_react(a, b) {
     return a != b && a.toLowerCase() == b.toLowerCase();
@@ -31,8 +32,8 @@ function collapse(poly, ignore) {
     const root = { unit: '0', subnodes: [] };
     const nodes = [root];
     for (let u of poly) {
-        if (ignore !== undefined && u.toLowerCase() == ignore) {
-            nodes[nodes.length-1].subnodes.push({ ignored:true, subnodes:[] });
+        if (ignore !== undefined && ignore[0] == u.toLowerCase()) {
+            nodes[nodes.length-1].subnodes.push({ ignore:true, subnodes:[] });
         } else if (test_react(u, nodes[nodes.length-1].unit)) {
             const last = nodes.pop();
             nodes[nodes.length-1].subnodes.push(last);
@@ -44,14 +45,16 @@ function collapse(poly, ignore) {
 }
 
 class PolymerView {
-    constructor(canvas, nodes) {
+    constructor(canvas, polymer, ignored) {
         this.canvas = canvas;
-        this.nodes = nodes;
-        
+        this.polymer = polymer;
+        this.ignored = ignored;
+        this.run_collapse();
+
         this.start_x = START_X;
         this.start_y = START_Y;
         this.zoom = ZOOM;
-        this.base_weight = 2;
+        this.base_weight = BASE_WEIGHT;
         this.step_size = STEP_SIZE;
         this.base_angle = BASE_ANGLE;
         this.base_scale = BASE_SCALE;
@@ -62,7 +65,15 @@ class PolymerView {
         this.background_color = BACKGROUND_COLOR;
         this.base_color = BASE_COLOR;
         this.subtree_color = SUBTREE_COLOR;
-        this.ignored_color = IGNORED_COLOR;
+        this.removed_color = REMOVED_COLOR;
+    }
+
+    run_collapse() {
+        const collapse_start = Date.now();
+        this.nodes = collapse(this.polymer, this.ignored);
+        const elapsed = Date.now() - collapse_start;
+        console.log('polymer ready --', this.nodes.length, 'trunk nodes',
+            '--', elapsed, 'ms');
     }
 
     draw() {
@@ -114,8 +125,8 @@ class PolymerView {
                     this.subtree_scale,
                     this.subtree_color);
                 ctx.restore();
-            } else if (node.ignored) {
-                ctx.fillStyle = this.ignored_color;
+            } else if (node.ignore) {
+                ctx.fillStyle = this.removed_color;
                 ctx.beginPath();
                 ctx.arc(-1,-2,3,0,2*Math.PI);
                 ctx.fill();
@@ -125,25 +136,25 @@ class PolymerView {
 }
 
 function animate(view, n, dn, ddn) {
-    view.nodes = collapse(POLYMER_STRING.substring(0, n), IGNORE_UNIT);
+    view.nodes = collapse(view.polymer.substring(0, n), view.ignored);
     view.draw();
     if (Math.floor(n/1000) != Math.floor((n-dn)/1000)) {
         console.debug('...', Math.floor(n/1000)*1000);
     }
-    if (n < POLYMER_STRING.length) {
+    if (n < view.polymer.length) {
         window.requestAnimationFrame(() => animate(view, n+dn, dn+ddn, ddn));
     }
 }
 
 function init() {
-    const collapse_start = Date.now();
-    const nodes = collapse(POLYMER_STRING, IGNORE_UNIT);
-    const elapsed = Date.now() - collapse_start;
-    console.log('polymer ready --', nodes.length, 'nodes --', elapsed, 'ms');
+    // let polymer = POLYMER_STRING;
+    const polymer = 'dabAcCaCBAcCcaDA';
 
     const canvas = document.getElementById('main');
     canvas.width = canvas.clientWidth;
     canvas.height = canvas.clientHeight;
+
+    const view = new PolymerView(canvas, polymer, IGNORE_UNIT);
 
     window.requestAnimationFrame(() => {
         canvas.width = canvas.clientWidth;
@@ -151,7 +162,7 @@ function init() {
         view.draw();
         // animate(view, 1, 8, 0);
     });
-    
+
     // On window resize, fix canvas size and redraw.
     window.addEventListener('resize', (event) => {
         canvas.width = canvas.clientWidth;
@@ -159,7 +170,6 @@ function init() {
         view.draw();
     });
 
-    const view = new PolymerView(canvas, nodes);
     link_param_control(view, 'base_weight', (ctl) => parseFloat(ctl.value));
     link_param_control(view, 'step_size', (ctl) => parseFloat(ctl.value));
     link_param_control(view, 'base_angle', (ctl) => parseFloat(ctl.value));
@@ -169,8 +179,22 @@ function init() {
     link_param_control(view, 'subtree_scale', (ctl) => parseFloat(ctl.value));
     link_param_control(view, 'base_color');
     link_param_control(view, 'subtree_color');
-    link_param_control(view, 'ignored_color');
+    link_param_control(view, 'removed_color');
     link_param_control(view, 'background_color');
+
+    const ctl = document.getElementById('remove_unit');
+    ctl.value = view.ignored;
+    ctl.addEventListener('input', (event) => {
+        view.ignored = event.target.value;
+        view.run_collapse();
+        view.draw();
+    });
+
+    simple_file_loader('polymer_file', (new_poly) => {
+        view.polymer = new_poly;
+        view.run_collapse();
+        view.draw();
+    });
 
     track_mouse(canvas, (dx, dy) => {
         view.start_x += dx/view.zoom;

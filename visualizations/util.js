@@ -16,6 +16,21 @@ function link_checkbox_control(view, param_name) {
         (ctl, val) => ctl.checked = val);
 }
 
+function simple_file_loader(file_input, ready_callback) {
+    const file_picker = document.getElementById(file_input);
+    file_picker.addEventListener('change', (event) => {
+        if (event.target.files.length > 0) {
+            const file = event.target.files[0];
+            console.log('reading file', file.name);
+            const reader = new FileReader();
+            reader.onload = (read_event) => {
+                ready_callback(read_event.target.result);
+            };
+            reader.readAsText(file);
+        }
+    });
+}
+
 function track_mouse(canvas, move_callback) {
     let tracking = null;
 
