@@ -1,14 +1,14 @@
 const BASE_WEIGHT = 2;
 const START_X = 0;
-const START_Y = -150;
+const START_Y = -250;
 const ZOOM = 1;
 const STEP_SIZE = 18;
 const BASE_ANGLE = 0.07;
-const BASE_SCALE = 0.9999;      // holiday wreath
+const BASE_SCALE = 0.99985;      // holiday wreath
 // const BASE_SCALE = 0.996;       // spiral
-const BRANCH_ANGLE = -0.6;
+const BRANCH_ANGLE = -0.2;
 const SUBTREE_ANGLE_MULT = -1.5;
-const SUBTREE_SCALE = 0.96;
+const SUBTREE_SCALE = 0.7;
 
 // holiday wreath
 const BACKGROUND_COLOR = '#f8f0e0';
@@ -22,7 +22,7 @@ const REMOVED_COLOR = '#ff0000';
 // const SUBTREE_COLOR = '#c0ffff';
 // const REMOVED_COLOR = '#ffc0f0';
 
-const IGNORE_UNIT = '';
+const IGNORE_UNIT = 'a';
 
 function test_react(a, b) {
     return a != b && a.toLowerCase() == b.toLowerCase();
@@ -147,8 +147,8 @@ function animate(view, n, dn, ddn) {
 }
 
 function init() {
-    // let polymer = POLYMER_STRING;
-    const polymer = 'dabAcCaCBAcCcaDA';
+    // const polymer = 'dabAcCaCBAcCcaDA';
+    let polymer = POLYMER;
 
     const canvas = document.getElementById('main');
     canvas.width = canvas.clientWidth;
