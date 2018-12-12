@@ -173,8 +173,8 @@ class TreeView {
 
 function init() {
     const parse_start = Date.now();
-    const root = parse_license('2 3 0 3 10 11 12 1 1 0 1 99 2 1 1 2');
-    // const root = parse_license(LICENSE);
+    // const root = parse_license('2 3 0 3 10 11 12 1 1 0 1 99 2 1 1 2');
+    const root = parse_license(LICENSE);
     const elapsed = Date.now() - parse_start;
     console.log('license tree ready --', elapsed, 'ms');
     // console.debug(root);
