@@ -20,7 +20,7 @@ const BASE_ANGLE = -0.3;
 const BASE_SCALE = 0.85;
 const BRANCH_ANGLE = 0.4;
 const BRANCH_SCALE = 0.8;
-const METADATA_SCALE = 1;
+const METADATA_SCALE = 2;
 
 // Pine tree
 // const BASE_ANGLE = 0;
@@ -109,7 +109,7 @@ class TreeView {
                     continue;
                 }
 
-                this.forward_line(ctx, this.step_size);
+                forward_line(ctx, this.step_size);
 
                 ctx.save();
                 ctx.rotate(this.branch_angle);
@@ -118,7 +118,7 @@ class TreeView {
                     const subn = node.subnodes[i-1];
                     this.draw_node_part2(ctx, subn);
                 } else if (this.metadata_stubs) {
-                    this.forward_line(ctx, this.step_size/2);
+                    forward_line(ctx, this.step_size/2);
                 }
                 ctx.restore();
 
@@ -132,7 +132,7 @@ class TreeView {
 
     draw_node_part1(ctx, node) {
         for (let subn of node.subnodes) {
-            this.forward_line(ctx, this.step_size);
+            forward_line(ctx, this.step_size);
 
             ctx.save();
             ctx.rotate(this.branch_angle);
@@ -144,30 +144,15 @@ class TreeView {
             ctx.scale(this.base_scale, this.base_scale);
         }
 
-        this.forward_line(ctx, this.step_size);
+        forward_line(ctx, this.step_size);
         this.draw_metadata(ctx, node.metadata);
     }
 
     draw_metadata(ctx, metadata) {
         ctx.scale(this.metadata_scale, this.metadata_scale);
         for (let v of metadata) {
-            this.forward_circle(ctx, v);
+            forward_circle(ctx, v);
         }
-    }
-
-    forward_line(ctx, dist) {
-        ctx.beginPath();
-        ctx.moveTo(0,0);
-        ctx.translate(dist, 0);
-        ctx.lineTo(0,0);
-        ctx.stroke();
-    }
-
-    forward_circle(ctx, radius) {
-        ctx.beginPath();
-        ctx.arc(radius, 0, radius, 0, 2*Math.PI);
-        ctx.fill();
-        ctx.translate(2*radius, 0);
     }
 }
 

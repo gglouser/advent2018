@@ -1,3 +1,18 @@
+function forward_line(ctx, dist) {
+    ctx.beginPath();
+    ctx.moveTo(0,0);
+    ctx.translate(dist, 0);
+    ctx.lineTo(0,0);
+    ctx.stroke();
+}
+
+function forward_circle(ctx, dist) {
+    ctx.beginPath();
+    ctx.arc(dist/2, 0, dist/2, 0, 2*Math.PI);
+    ctx.fill();
+    ctx.translate(dist, 0);
+}
+
 function link_param_control(view, param_name, getControlVal, setControlVal) {
     getControlVal = getControlVal || ((c) => c.value);
     setControlVal = setControlVal || ((c, v) => c.value = v);

@@ -1,26 +1,20 @@
 const BASE_WEIGHT = 2;
 const START_X = 0;
 const START_Y = -250;
-const ZOOM = 1;
-const STEP_SIZE = 18;
+const ZOOM = 0.64;
+const STEP_SIZE = 20;
 const BASE_ANGLE = 0.07;
-const BASE_SCALE = 0.99985;      // holiday wreath
-// const BASE_SCALE = 0.996;       // spiral
-const BRANCH_ANGLE = -0.2;
-const SUBTREE_ANGLE_MULT = -1.5;
-const SUBTREE_SCALE = 0.7;
+const BASE_SCALE = 0.9999;
+const BRANCH_ANGLE = -0.4;
+const BRANCH_SCALE = 0.9;
+const SUBTREE_ANGLE_MULT = -1.6;
+const SUBTREE_SCALE_MULT = 0.98;
 
 // holiday wreath
 const BACKGROUND_COLOR = '#f8f0e0';
 const BASE_COLOR = '#804818';
 const SUBTREE_COLOR = '#008000';
 const REMOVED_COLOR = '#ff0000';
-
-// electric weirdness
-// const BACKGROUND_COLOR = '#000000';
-// const BASE_COLOR = '#ffc0c0';
-// const SUBTREE_COLOR = '#c0ffff';
-// const REMOVED_COLOR = '#ffc0f0';
 
 const IGNORE_UNIT = 'a';
 
@@ -59,8 +53,9 @@ class PolymerView {
         this.base_angle = BASE_ANGLE;
         this.base_scale = BASE_SCALE;
         this.branch_angle = BRANCH_ANGLE;
+        this.branch_scale = BRANCH_SCALE;
         this.subtree_angle_mult = SUBTREE_ANGLE_MULT;
-        this.subtree_scale = SUBTREE_SCALE;
+        this.subtree_scale_mult = SUBTREE_SCALE_MULT;
 
         this.background_color = BACKGROUND_COLOR;
         this.base_color = BASE_COLOR;
@@ -83,55 +78,47 @@ class PolymerView {
 
         ctx.lineWidth = this.base_weight;
         ctx.lineCap = 'round';
+        ctx.fillStyle = this.removed_color;
+
         ctx.save();
         ctx.translate(ctx.canvas.width/2, ctx.canvas.height/2);
         ctx.scale(this.zoom, this.zoom);
         ctx.translate(this.start_x, this.start_y);
-        this.draw_nodes(ctx, this.nodes, this.base_angle, this.base_scale, this.base_color);
+        this.draw_nodes(ctx, this.nodes, 0);
         ctx.restore();
     }
 
-    visit_nodes(ctx, nodes, theta, scale, f) {
-        // nodes = nodes.slice(0).reverse();
-        ctx.save();
+    draw_nodes(ctx, nodes, depth) {
         for (let node of nodes) {
-            ctx.translate(this.step_size, 0);
-            f(node);
-            ctx.rotate(theta);
-            ctx.scale(scale, scale);
+            this.draw_node(ctx, node, depth);
         }
-        ctx.restore();
     }
 
-    draw_nodes(ctx, nodes, theta, scale, color) {
-        // first pass - draw the stem
-        ctx.strokeStyle = color;
-        ctx.beginPath();
-        ctx.moveTo(0,0);
-        this.visit_nodes(ctx, nodes, theta, scale, (node) => {
-            ctx.lineTo(0, 0);
-            ctx.stroke();
-            ctx.beginPath();
-            ctx.moveTo(0,0);
-        });
+    draw_node(ctx, node, depth) {
+        if (depth == 0) {
+            ctx.strokeStyle = this.base_color;
+        } else {
+            ctx.strokeStyle = this.subtree_color;
+        }
 
-        // second pass - recursively draw subtrees
-        this.visit_nodes(ctx, nodes, theta, scale, (node) => {
-            if (node.subnodes.length > 0) {
-                ctx.save();
-                ctx.rotate(this.branch_angle);
-                this.draw_nodes(ctx, node.subnodes,
-                    this.subtree_angle_mult*theta,
-                    this.subtree_scale,
-                    this.subtree_color);
-                ctx.restore();
-            } else if (node.ignore) {
-                ctx.fillStyle = this.removed_color;
-                ctx.beginPath();
-                ctx.arc(-1,-2,3,0,2*Math.PI);
-                ctx.fill();
-            }
-        });
+        if (node.ignore) {
+            forward_line(ctx, this.step_size*2/3);
+            forward_circle(ctx, this.step_size/3);
+        } else {
+            forward_line(ctx, this.step_size);
+        }
+
+        if (node.subnodes.length > 0) {
+            ctx.save();
+            ctx.rotate(this.branch_angle);
+            ctx.scale(this.branch_scale, this.branch_scale);
+            this.draw_nodes(ctx, node.subnodes, depth+1);
+            ctx.restore();
+        }
+
+        ctx.rotate(this.base_angle * (this.subtree_angle_mult ** depth));
+        const scale =  this.base_scale * (this.subtree_scale_mult ** depth);
+        ctx.scale(scale, scale);
     }
 }
 
@@ -175,8 +162,9 @@ function init() {
     link_param_control(view, 'base_angle', (ctl) => parseFloat(ctl.value));
     link_param_control(view, 'base_scale', (ctl) => parseFloat(ctl.value));
     link_param_control(view, 'branch_angle', (ctl) => parseFloat(ctl.value));
+    link_param_control(view, 'branch_scale', (ctl) => parseFloat(ctl.value));
     link_param_control(view, 'subtree_angle_mult', (ctl) => parseFloat(ctl.value));
-    link_param_control(view, 'subtree_scale', (ctl) => parseFloat(ctl.value));
+    link_param_control(view, 'subtree_scale_mult', (ctl) => parseFloat(ctl.value));
     link_param_control(view, 'base_color');
     link_param_control(view, 'subtree_color');
     link_param_control(view, 'removed_color');
@@ -199,6 +187,7 @@ function init() {
     track_mouse(canvas, (dx, dy) => {
         view.start_x += dx/view.zoom;
         view.start_y += dy/view.zoom;
+        // console.debug('start =', view.start_x, view.start_y, '-- zoom =', view.zoom);
         view.draw();
     });
 
@@ -209,6 +198,7 @@ function init() {
             view.zoom *= 0.8;
         }
         view.draw();
+        // console.debug('start =', view.start_x, view.start_y, '-- zoom =', view.zoom);
     }, {passive:true});
 }
 
