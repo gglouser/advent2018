@@ -26,9 +26,12 @@ function link_param_control(view, param_name, getControlVal, setControlVal) {
 }
 
 function link_checkbox_control(view, param_name) {
-    link_param_control(view, param_name,
-        (ctl) => ctl.checked,
-        (ctl, val) => ctl.checked = val);
+    const ctl = document.getElementById(param_name);
+    ctl.checked = view[param_name];
+    ctl.addEventListener('change', (event) => {
+        view[param_name] = ctl.checked;
+        view.draw();
+    });
 }
 
 function simple_file_loader(file_input, ready_callback) {
