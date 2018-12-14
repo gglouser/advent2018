@@ -18,7 +18,7 @@ mod day10;
 mod day11;
 mod day12;
 mod day13;
-// mod day14;
+mod day14;
 // mod day15;
 // mod day16;
 // mod day17;
@@ -84,7 +84,7 @@ fn main() {
         "day11" => day11::run(&input),
         "day12" => day12::run(&input),
         "day13" => day13::run(&input),
-        // "day14" => day14::run(&input),
+        "day14" => day14::run(&input),
         // "day15" => day15::run(&input),
         // "day16" => day16::run(&input),
         // "day17" => day17::run(&input),
