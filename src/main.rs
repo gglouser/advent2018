@@ -1,9 +1,11 @@
+extern crate regex;
+
 use std::env;
 use std::fs::File;
 use std::io::prelude::*;
 use std::process;
 
-extern crate regex;
+mod search;
 
 mod day01;
 mod day02;
@@ -19,8 +21,8 @@ mod day11;
 mod day12;
 mod day13;
 mod day14;
-// mod day15;
-// mod day16;
+mod day15;
+mod day16;
 // mod day17;
 // mod day18;
 // mod day19;
@@ -85,8 +87,8 @@ fn main() {
         "day12" => day12::run(&input),
         "day13" => day13::run(&input),
         "day14" => day14::run(&input),
-        // "day15" => day15::run(&input),
-        // "day16" => day16::run(&input),
+        "day15" => day15::run(&input),
+        "day16" => day16::run(&input),
         // "day17" => day17::run(&input),
         // "day18" => day18::run(&input),
         // "day19" => day19::run(&input),
