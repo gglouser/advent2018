@@ -1,3 +1,4 @@
+use std::cmp::Reverse;
 use std::collections::{BinaryHeap, HashSet};
 use std::hash::Hash;
 
@@ -13,12 +14,12 @@ where
     T::SearchState: Eq + Ord + Hash,
 {
     let mut queue = BinaryHeap::new();
-    queue.push(init_state);
+    queue.push(Reverse(init_state));
     let mut visited = HashSet::new();
-    while let Some(st) = queue.pop() {
+    while let Some(Reverse(st)) = queue.pop() {
         if searcher.is_goal(&st) { return Some(st); }
         if !visited.contains(&st) {
-            queue.extend(searcher.branch(&st).into_iter());
+            queue.extend(searcher.branch(&st).into_iter().map(|child| Reverse(child)));
             visited.insert(st);
         }
     }

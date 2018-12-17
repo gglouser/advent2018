@@ -4,6 +4,7 @@ use std::hash::{Hash, Hasher};
 use std::ops::{Index, IndexMut};
 use search::*;
 
+const SHOW_FINAL_GRID: bool = false;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 struct Pos(i32, i32);
@@ -131,7 +132,6 @@ fn grid_string(grid: &Grid, units: &[Unit]) -> String {
 #[derive(Clone, Debug, Eq)]
 struct PathSearchState {
     pos: Pos,
-    steps: u32,
     cost: u32,
     target: Pos,
     first_step_rank: Option<u32>,
@@ -152,11 +152,9 @@ impl Hash for PathSearchState {
 
 impl Ord for PathSearchState {
     fn cmp(&self, other: &Self) -> Ordering {
-        other.steps.cmp(&self.steps)
-            .then(other.pos.cmp(&self.pos))
-        // other.cost.cmp(&self.cost)
-            // .then(other.target.cmp(&self.target))
-            .then(other.first_step_rank.cmp(&self.first_step_rank))
+        self.cost.cmp(&other.cost)
+            .then(self.target.cmp(&other.target))
+            .then(self.first_step_rank.cmp(&other.first_step_rank))
     }
 }
 
@@ -170,7 +168,6 @@ impl PathSearchState {
     fn new(pos: Pos) -> Self {
         PathSearchState {
             pos,
-            steps: 0,
             cost: 0,
             target: pos,
             first_step_rank: None,
@@ -192,18 +189,16 @@ impl<'a> SearchSpec for PathSearch<'a> {
             .filter(|&(_, n)| self.grid[n] == GridContents::Open)
             .map(|(step_rank, pos)| {
                 
-                let (&target,heuristic) = self.dests.iter()
-                    .map(|d| (d, pos.dist(d)))
-                    .min_by_key(|&(_,dist)| dist)
-                    .unwrap();
+                let (tdist, &target) = self.dests.iter()
+                    .map(|d| (pos.dist(d), d))
+                    .min().unwrap();
                 
                 let mut route = state.route.clone();
                 route.push(pos);
 
                 PathSearchState {
                     pos,
-                    steps: state.steps + 1,
-                    cost: state.steps + 1 + heuristic,
+                    cost: route.len() as u32 + tdist,
                     target,
                     first_step_rank: state.first_step_rank.or(Some(step_rank as u32)),
                     route,
@@ -222,7 +217,7 @@ fn choose_step(grid: &Grid, start: Pos, dests: &HashSet<Pos>) -> Option<Pos> {
         .map(|st| st.route[0])
 }
 
-fn simulate(grid: &Grid, units: &[Unit], elf_atk: u32) -> (u32, bool) {
+fn simulate(grid: &Grid, units: &[Unit], elf_atk: u32, stop_on_elf_death: bool) -> (u32, bool) {
     println!("\nSimulating with elf attack power = {}", elf_atk);
     let initial_elves = units.iter().filter(|u| u.team == Team::Elf).count();
 
@@ -264,12 +259,12 @@ fn simulate(grid: &Grid, units: &[Unit], elf_atk: u32) -> (u32, bool) {
                 adj_squares.retain(|&p| grid[p] == GridContents::Open);
                 if !adj_squares.is_empty() {
                     //   C. Determine which can be reached in fewest steps
-                    if let Some(s) = choose_step(&grid, units[u].pos, &adj_squares) {
+                    if let Some(new_pos) = choose_step(&grid, units[u].pos, &adj_squares) {
                         // Finally, move this unit
                         let uid = grid[units[u].pos];
                         grid[units[u].pos] = GridContents::Open;
-                        grid[s] = uid;
-                        units[u].pos = s;
+                        grid[new_pos] = uid;
+                        units[u].pos = new_pos;
                     }
                 }
             }
@@ -299,6 +294,7 @@ fn simulate(grid: &Grid, units: &[Unit], elf_atk: u32) -> (u32, bool) {
                     // Target killed
                     units[t].hp = 0;
                     grid[units[t].pos] = GridContents::Open;
+                    if stop_on_elf_death && units[t].team == Team::Elf { break 'combat; }
                 } else {
                     units[t].hp -= units[u].atk;
                 }
@@ -316,7 +312,9 @@ fn simulate(grid: &Grid, units: &[Unit], elf_atk: u32) -> (u32, bool) {
 
     active_units.retain(|&u| units[u].hp > 0);
     println!("-- final state -- {} active units --", active_units.len());
-    println!("{}", grid_string(&grid, &units));
+    if SHOW_FINAL_GRID {
+        println!("{}", grid_string(&grid, &units));
+    }
     println!("Combat ends after {} full rounds", round);
     println!("{:?} win with {} total hit points left", units[active_units[0]].team, hp_total);
     println!("Outcome: {} * {} = {}", round, hp_total, outcome);
@@ -329,9 +327,9 @@ fn simulate(grid: &Grid, units: &[Unit], elf_atk: u32) -> (u32, bool) {
 
 fn solve(input: &str) -> (u32, u32) {
     let (grid, units) = parse_input(input);
-    let (outcome,_) = simulate(&grid, &units, 3);
+    let (outcome,_) = simulate(&grid, &units, 3, false);
 
-    let outcome2 = (4..).map(|elf_atk| simulate(&grid, &units, elf_atk))
+    let outcome2 = (4..).map(|elf_atk| simulate(&grid, &units, elf_atk, true))
         .find(|&(_,ev)| ev)
         .unwrap().0;
 
