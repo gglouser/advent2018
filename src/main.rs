@@ -5,6 +5,7 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::process;
 
+mod machine;
 mod search;
 
 mod day01;
@@ -25,7 +26,7 @@ mod day15;
 mod day16;
 mod day17;
 mod day18;
-// mod day19;
+mod day19;
 // mod day20;
 // mod day21;
 // mod day22;
@@ -91,7 +92,7 @@ fn main() {
         "day16" => day16::run(&input),
         "day17" => day17::run(&input),
         "day18" => day18::run(&input),
-        // "day19" => day19::run(&input),
+        "day19" => day19::run(&input),
         // "day20" => day20::run(&input),
         // "day21" => day21::run(&input),
         // "day22" => day22::run(&input),

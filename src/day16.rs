@@ -1,28 +1,5 @@
 use regex::Regex;
-
-type RegType = u32;
-type Regs = [RegType; 4];
-type Val = usize;
-
-#[derive(Clone, Copy, Debug)]
-enum Opcode {
-    Addr,
-    Addi,
-    Mulr,
-    Muli,
-    Banr,
-    Bani,
-    Borr,
-    Bori,
-    Setr,
-    Seti,
-    Gtir,
-    Gtri,
-    Gtrr,
-    Eqir,
-    Eqri,
-    Eqrr,
-}
+use machine::*;
 
 impl Opcode {
     fn from_usize(opcode: usize) -> Self {
@@ -48,47 +25,11 @@ impl Opcode {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
-struct Instr(Opcode, Val, Val, Val);
-
-#[derive(Clone, Copy, Debug)]
-struct Machine {
-    regs: Regs,
-}
-
-impl Machine {
-    fn new(regs: Regs) -> Machine {
-        Machine { regs }
-    }
-
-    fn exec(&mut self, instr: Instr) {
-        let Instr(op, a, b, c) = instr;
-        match op {
-            Opcode::Addr => self.regs[c] = self.regs[a] + self.regs[b],
-            Opcode::Addi => self.regs[c] = self.regs[a] + b as RegType,
-            Opcode::Mulr => self.regs[c] = self.regs[a] * self.regs[b],
-            Opcode::Muli => self.regs[c] = self.regs[a] * b as RegType,
-            Opcode::Banr => self.regs[c] = self.regs[a] & self.regs[b],
-            Opcode::Bani => self.regs[c] = self.regs[a] & b as RegType,
-            Opcode::Borr => self.regs[c] = self.regs[a] | self.regs[b],
-            Opcode::Bori => self.regs[c] = self.regs[a] | b as RegType,
-            Opcode::Setr => self.regs[c] = self.regs[a],
-            Opcode::Seti => self.regs[c] = a as RegType,
-            Opcode::Gtir => self.regs[c] = (a as RegType > self.regs[b]) as RegType,
-            Opcode::Gtri => self.regs[c] = (self.regs[a] > b as RegType) as RegType,
-            Opcode::Gtrr => self.regs[c] = (self.regs[a] > self.regs[b]) as RegType,
-            Opcode::Eqir => self.regs[c] = (a as RegType == self.regs[b]) as RegType,
-            Opcode::Eqri => self.regs[c] = (self.regs[a] == b as RegType) as RegType,
-            Opcode::Eqrr => self.regs[c] = (self.regs[a] == self.regs[b]) as RegType,
-        }
-    }
-}
-
 #[derive(Debug, PartialEq)]
 struct Sample {
-    before: Regs,
+    before: Vec<RegType>,
     instr: Vec<usize>,
-    after: Regs,
+    after: Vec<RegType>,
 }
 
 fn parse_samples(s: &str) -> Vec<Sample> {
@@ -102,21 +43,15 @@ fn parse_samples(s: &str) -> Vec<Sample> {
         let after = part1.next().unwrap();
         part1.next(); // skip blank line
 
-        let mut before_regs = [0; 4];
         let bcaps = re_before.captures(before).unwrap();
-        for i in 0..4 {
-            before_regs[i] = bcaps[i+1].parse().unwrap()
-        }
+        let before_regs = (1..=4).map(|n| bcaps[n].parse().unwrap()).collect();
 
         let instr = instr.split_whitespace()
             .map(|n| n.parse().unwrap())
             .collect();
 
-        let mut after_regs = [0; 4];
         let acaps = re_after.captures(after).unwrap();
-        for i in 0..4 {
-            after_regs[i] = acaps[i+1].parse().unwrap();
-        }
+        let after_regs = (1..=4).map(|n| acaps[n].parse().unwrap()).collect();
 
         samples.push(Sample { before: before_regs, instr, after: after_regs });
     }
@@ -134,15 +69,15 @@ fn evaluate_samples(samples: &[Sample]) -> (u32, Vec<Vec<bool>>) {
     let mut like_three = 0;
     let mut valid_sets = vec![vec![true; 16]; 16];
 
+    let mut mach = Machine::new(5);
     for sample in samples.iter() {
-        let init_mach = Machine::new(sample.before);
         let instr = &sample.instr;
         let mut valid = 0;
         for o in 0..16 {
+            mach.regs[..4].copy_from_slice(&sample.before);
             let i = Instr(Opcode::from_usize(o), instr[1], instr[2], instr[3]);
-            let mut mach = init_mach.clone();
             mach.exec(i);
-            if mach.regs == sample.after {
+            if &mach.regs[..4] == sample.after.as_slice() {
                 valid += 1;
             } else {
                 valid_sets[instr[0]][o] = false;
@@ -193,7 +128,7 @@ fn solve(input: &str) -> (u32, u32) {
     println!("{:?}", opcodes);
 
     let prog = parse_instrs(prog, &opcodes);
-    let mut m = Machine::new([0;4]);
+    let mut m = Machine::new(5);
     for instr in prog {
         m.exec(instr);
     }
@@ -220,7 +155,7 @@ After:  [3, 2, 2, 1]
     #[test]
     fn parsing() {
         assert_eq!(parse_samples(EXAMPLE), vec![
-            Sample { before: [3,2,1,1], instr: vec![9,2,1,2], after: [3,2,2,1] },
+            Sample { before: vec![3,2,1,1], instr: vec![9,2,1,2], after: vec![3,2,2,1] },
         ]);
     }
 
