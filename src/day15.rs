@@ -132,10 +132,10 @@ fn grid_string(grid: &Grid, units: &[Unit]) -> String {
 #[derive(Clone, Debug, Eq)]
 struct PathSearchState {
     pos: Pos,
+    steps: u32,
     cost: u32,
     target: Pos,
-    first_step_rank: Option<u32>,
-    route: Vec<Pos>,
+    first_step: Option<Pos>,
 }
 
 impl PartialEq for PathSearchState {
@@ -154,7 +154,7 @@ impl Ord for PathSearchState {
     fn cmp(&self, other: &Self) -> Ordering {
         self.cost.cmp(&other.cost)
             .then(self.target.cmp(&other.target))
-            .then(self.first_step_rank.cmp(&other.first_step_rank))
+            .then(self.first_step.cmp(&other.first_step))
     }
 }
 
@@ -168,10 +168,10 @@ impl PathSearchState {
     fn new(pos: Pos) -> Self {
         PathSearchState {
             pos,
+            steps: 0,
             cost: 0,
             target: pos,
-            first_step_rank: None,
-            route: Vec::new(),
+            first_step: None,
         }
     }
 }
@@ -185,23 +185,19 @@ impl<'a> SearchSpec for PathSearch<'a> {
     type SearchState = PathSearchState;
 
     fn branch(&self, state: &Self::SearchState) -> Vec<Self::SearchState> {
-        state.pos.neighbors().enumerate()
-            .filter(|&(_, n)| self.grid[n] == GridContents::Open)
-            .map(|(step_rank, pos)| {
-                
+        state.pos.neighbors()
+            .filter(|&n| self.grid[n] == GridContents::Open)
+            .map(|pos| {
                 let (tdist, &target) = self.dests.iter()
                     .map(|d| (pos.dist(d), d))
                     .min().unwrap();
-                
-                let mut route = state.route.clone();
-                route.push(pos);
-
+                let steps = state.steps + 1;
                 PathSearchState {
                     pos,
-                    cost: route.len() as u32 + tdist,
+                    steps,
+                    cost: steps + tdist,
                     target,
-                    first_step_rank: state.first_step_rank.or(Some(step_rank as u32)),
-                    route,
+                    first_step: state.first_step.or(Some(pos)),
                 }
             }).collect()
     }
@@ -212,126 +208,156 @@ impl<'a> SearchSpec for PathSearch<'a> {
 }
 
 fn choose_step(grid: &Grid, start: Pos, dests: &HashSet<Pos>) -> Option<Pos> {
+    if dests.is_empty() { return None };
     let searcher = PathSearch { grid, dests };
     best_first_search(searcher, PathSearchState::new(start))
-        .map(|st| st.route[0])
+        .map(|st| st.first_step.expect("no first step"))
 }
 
-fn simulate(grid: &Grid, units: &[Unit], elf_atk: u32, stop_on_elf_death: bool) -> (u32, bool) {
-    println!("\nSimulating with elf attack power = {}", elf_atk);
-    let initial_elves = units.iter().filter(|u| u.team == Team::Elf).count();
+struct Simulation {
+    grid: Grid,
+    units: Vec<Unit>,
+}
 
-    let mut grid = grid.clone();
-    let mut units = units.to_vec();
-    for unit in units.iter_mut() {
-        if unit.team == Team::Elf {
-            unit.atk = elf_atk;
+impl Simulation {
+    fn new(grid: Grid, units: Vec<Unit>) -> Self {
+        Simulation { grid, units }
+    }
+
+    fn move_unit(&mut self, uid: UnitID, new_pos: Pos) {
+        assert!(self.grid[self.units[uid].pos] == GridContents::Unit(uid));
+        assert!(self.grid[new_pos] == GridContents::Open);
+        self.grid[self.units[uid].pos] = GridContents::Open;
+        self.grid[new_pos] = GridContents::Unit(uid);
+        self.units[uid].pos = new_pos;
+    }
+
+    fn resolve_attack(&mut self, attacker: UnitID, defender: UnitID) -> bool {
+        if self.units[attacker].atk >= self.units[defender].hp {
+            self.units[defender].hp = 0;
+            self.grid[self.units[defender].pos] = GridContents::Open;
+            true
+        } else {
+            self.units[defender].hp -= self.units[attacker].atk;
+            false
         }
     }
-    let mut active_units: Vec<UnitID> = (0..units.len()).collect();
-    let mut round = 0u32;
-    'combat: loop {
-        // println!("-- begin round {} -- {} active units --", round, active_units.len());
-        // println!("{}", grid_string(&grid, &units));
 
-        // Initiative order for this round
-        active_units.sort_unstable_by_key(|&u| units[u].pos);
+    // Returns None if no targets exist, or Some(step) for optional next step if targets exist.
+    fn find_move(&self, uid: UnitID) -> Option<Option<Pos>> {
+        // Identify targets.
+        let mover = &self.units[uid];
+        let targets: Vec<&Unit> = self.units.iter()
+            .filter(|&target| target.hp != 0 && target.team != mover.team)
+            .collect();
+        if targets.is_empty() { return None; }
 
-        // For each unit...
-        for &u in active_units.iter() {
-            // This unit may have been killed during the round
-            if units[u].hp == 0 { continue; }
+        // Identify open squares in range of (adjacent to) targets.
+        let adj_squares: HashSet<Pos> = targets.into_iter()
+            .flat_map(|target| target.pos.neighbors())
+            .filter(|&pos| self.grid[pos] == GridContents::Open)
+            .collect();
+        Some(choose_step(&self.grid, mover.pos, &adj_squares))
+    }
 
-            // I. Move
-            //   A. Identify targets
-            let targets = active_units.iter()
-                .filter(|&&t| units[t].hp != 0 && units[t].team != units[u].team)
-                .cloned().collect::<Vec<UnitID>>();
+    fn find_attack_target(&self, attacker: UnitID) -> Option<UnitID> {
+        self.units[attacker].pos.neighbors()
+            .filter_map(|pos| if let GridContents::Unit(uid) = self.grid[pos] { Some(uid) } else { None })
+            .filter(|&target| self.units[target].team != self.units[attacker].team)
+            .min_by_key(|&target| (self.units[target].hp, self.units[target].pos))
+    }
 
-            // If no targets remain, combat ends.
-            if targets.is_empty() { break 'combat; }
+    // Return true if combat should stop.
+    fn take_turn(&mut self, uid: UnitID, stop_on_elf_death: bool) -> bool {
+        // The unit may have been killed earlier in the current round.
+        if self.units[uid].hp == 0 { return false; }
 
-            //   B. Identify open squares in range of (adjacent to) targets
-            let mut adj_squares = targets.iter()
-                .flat_map(|&t| units[t].pos.neighbors())
-                .collect::<HashSet<Pos>>();
-            if !adj_squares.contains(&units[u].pos) {
-                adj_squares.retain(|&p| grid[p] == GridContents::Open);
-                if !adj_squares.is_empty() {
-                    //   C. Determine which can be reached in fewest steps
-                    if let Some(new_pos) = choose_step(&grid, units[u].pos, &adj_squares) {
-                        // Finally, move this unit
-                        let uid = grid[units[u].pos];
-                        grid[units[u].pos] = GridContents::Open;
-                        grid[new_pos] = uid;
-                        units[u].pos = new_pos;
-                    }
+        // I. Move
+        let mut attack_target = self.find_attack_target(uid);
+        if attack_target.is_none() {
+            if let Some(step) = self.find_move(uid) {
+                // Try to move and reacquire attack target.
+                if let Some(new_pos) = step {
+                    self.move_unit(uid, new_pos);
+                    attack_target = self.find_attack_target(uid);
                 }
-            }
-
-            // II. Attack
-            // A. Determine targets in range
-            let mut targets = units[u].pos.neighbors()
-                .filter_map(|n|
-                    if let GridContents::Unit(t) = grid[n] {
-                        if units[t].team != units[u].team {
-                            Some(t)
-                        } else {
-                            None
-                        }
-                    } else {
-                        None
-                    })
-                .collect::<Vec<_>>();
-
-            // B. Choose target
-            if !targets.is_empty() {
-                targets.sort_unstable_by_key(|&t| (units[t].hp, units[t].pos));
-                let t = targets[0];
-
-                // C. Deal damage
-                if units[u].atk >= units[t].hp {
-                    // Target killed
-                    units[t].hp = 0;
-                    grid[units[t].pos] = GridContents::Open;
-                    if stop_on_elf_death && units[t].team == Team::Elf { break 'combat; }
-                } else {
-                    units[t].hp -= units[u].atk;
-                }
+            } else {
+                // No targets remain; combat ends.
+                return true;
             }
         }
 
-        // Update active units
-        active_units.retain(|&u| units[u].hp > 0);
+        // II. Attack
+        if let Some(target) = attack_target {
+            let killed = self.resolve_attack(uid, target);
+            if stop_on_elf_death && killed && self.units[target].team == Team::Elf {
+                return true;
+            }
+        }
 
-        round += 1;
+        // Turn resolved successfully, combat continues.
+        false
     }
 
-    let hp_total = units.iter().map(|u| u.hp).sum::<u32>();
-    let outcome = round * hp_total;
+    fn simulate(&mut self, stop_on_elf_death: bool) -> (u32, bool) {
+        let initial_elves = self.units.iter().filter(|u| u.team == Team::Elf).count();
+        let mut active_units: Vec<UnitID> = (0..self.units.len()).collect();
+        let mut round = 0u32;
+        'combat: loop {
+            // println!("-- begin round {} -- {} active units --", round, active_units.len());
+            // println!("{}", grid_string(&grid, &units));
 
-    active_units.retain(|&u| units[u].hp > 0);
-    println!("-- final state -- {} active units --", active_units.len());
-    if SHOW_FINAL_GRID {
-        println!("{}", grid_string(&grid, &units));
+            // Initiative order for this round.
+            active_units.sort_unstable_by_key(|&u| self.units[u].pos);
+
+            // Take turns. If any unit indicates combat should stop, then stop.
+            if active_units.iter().any(|&uid| self.take_turn(uid, stop_on_elf_death)) {
+                break;
+            }
+
+            // Remove dead units from active list.
+            active_units.retain(|&uid| self.units[uid].hp > 0);
+
+            round += 1;
+        }
+
+        let hp_total = self.units.iter().map(|u| u.hp).sum::<u32>();
+        let outcome = round * hp_total;
+
+        active_units.retain(|&u| self.units[u].hp > 0);
+        println!("-- final state -- {} active units --", active_units.len());
+        if SHOW_FINAL_GRID {
+            println!("{}", grid_string(&self.grid, &self.units));
+        }
+        println!("Combat ends after {} full rounds", round);
+        println!("{:?} win with {} total hit points left", self.units[active_units[0]].team, hp_total);
+        println!("Outcome: {} * {} = {}", round, hp_total, outcome);
+
+        let final_elves = self.units.iter().filter(|u| u.hp > 0 && u.team == Team::Elf).count();
+        let elf_victory = initial_elves == final_elves;
+
+        (outcome, elf_victory)
     }
-    println!("Combat ends after {} full rounds", round);
-    println!("{:?} win with {} total hit points left", units[active_units[0]].team, hp_total);
-    println!("Outcome: {} * {} = {}", round, hp_total, outcome);
-
-    let final_elves = units.iter().filter(|u| u.hp > 0 && u.team == Team::Elf).count();
-    let elf_victory = initial_elves == final_elves;
-
-    (outcome, elf_victory)
 }
 
 fn solve(input: &str) -> (u32, u32) {
     let (grid, units) = parse_input(input);
-    let (outcome,_) = simulate(&grid, &units, 3, false);
+    let mut sim = Simulation::new(grid.clone(), units.clone());
+    let (outcome,_) = sim.simulate(false);
 
-    let outcome2 = (4..).map(|elf_atk| simulate(&grid, &units, elf_atk, true))
-        .find(|&(_,ev)| ev)
-        .unwrap().0;
+    let outcome2 = (4..).map(|elf_atk| {
+        // Set elf attack power.
+        println!("\nSimulating with elf attack power = {}", elf_atk);
+        let mut xunits = units.clone();
+        for unit in xunits.iter_mut() {
+            if unit.team == Team::Elf {
+                unit.atk = elf_atk;
+            }
+        }
+        let mut sim = Simulation::new(grid.clone(), xunits);
+        sim.simulate(true)
+    })
+    .find(|&(_,ev)| ev).unwrap().0;
 
     (outcome, outcome2)
 }
@@ -454,6 +480,67 @@ mod tests {
 ");
         assert_eq!(18740, part1);
         assert_eq!(1140, part2);
+    }
+
+    #[test]
+    fn path1() {
+        // The elf should move right.
+        let (grid, units) = parse_input("\
+#######
+#.E..G#
+#.#####
+#G#####
+#######
+");
+        let sim = Simulation::new(grid, units);
+        assert_eq!(Some(Some(Pos(1,3))), sim.find_move(0) )
+    }
+
+    #[test]
+    fn path2() {
+        // The elf should move left.
+        let (grid, units) = parse_input("\
+########
+#..E..G#
+#G######
+########
+");
+        let sim = Simulation::new(grid, units);
+        assert_eq!(Some(Some(Pos(1,2))), sim.find_move(0) )
+    }
+
+    #[test]
+    fn path3() {
+        // The goblin should move down.
+        let (grid, units) = parse_input("\
+######
+#.G..#
+##..##
+#...E#
+#E...#
+######
+");
+        let sim = Simulation::new(grid, units);
+        assert_eq!(Some(Some(Pos(2,2))), sim.find_move(0) )
+    }
+
+    #[test]
+    fn attack1() {
+        // Simulate a complete round. The elf should attack the goblin directly above.
+        let (grid, units) = parse_input("\
+####
+#GG#
+#.E#
+####
+");
+        let mut sim = Simulation::new(grid, units);
+        let stop = (0..3).any(|uid| sim.take_turn(uid, false));
+        assert!(!stop);
+        assert_eq!(sim.units, vec![
+            Unit { team: Team::Goblin, pos: Pos(2,1), atk: 3, hp: 200 },
+            Unit { team: Team::Goblin, pos: Pos(1,2), atk: 3, hp: 197 },
+            Unit { team: Team::Elf,    pos: Pos(2,2), atk: 3, hp: 194 },
+        ])
     }
 
     #[cfg(feature="test_real_input")]
