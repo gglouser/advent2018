@@ -1,10 +1,7 @@
 use std::cmp::Ordering;
 use std::collections::HashSet;
-use std::hash::{Hash, Hasher};
 use std::ops::{Index, IndexMut};
 use search::*;
-
-const SHOW_FINAL_GRID: bool = false;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 struct Pos(i32, i32);
@@ -129,25 +126,13 @@ fn grid_string(grid: &Grid, units: &[Unit]) -> String {
         }).collect()
 }
 
-#[derive(Clone, Debug, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 struct PathSearchState {
     pos: Pos,
     steps: u32,
     cost: u32,
     target: Pos,
     first_step: Option<Pos>,
-}
-
-impl PartialEq for PathSearchState {
-    fn eq(&self, other: &Self) -> bool {
-        self.pos == other.pos
-    }
-}
-
-impl Hash for PathSearchState {
-    fn hash<H: Hasher>(&self, hasher: &mut H) {
-        self.pos.hash(hasher);
-    }
 }
 
 impl Ord for PathSearchState {
@@ -182,9 +167,10 @@ struct PathSearch<'a> {
 }
 
 impl<'a> SearchSpec for PathSearch<'a> {
-    type SearchState = PathSearchState;
+    type State = PathSearchState;
+    type Token = Pos;
 
-    fn branch(&self, state: &Self::SearchState) -> Vec<Self::SearchState> {
+    fn branch(&self, state: &Self::State) -> Vec<Self::State> {
         state.pos.neighbors()
             .filter(|&n| self.grid[n] == GridContents::Open)
             .map(|pos| {
@@ -202,8 +188,12 @@ impl<'a> SearchSpec for PathSearch<'a> {
             }).collect()
     }
 
-    fn is_goal(&self, state: &Self::SearchState) -> bool {
+    fn is_goal(&self, state: &Self::State) -> bool {
         self.dests.contains(&state.pos)
+    }
+
+    fn token(&self, state: &Self::State) -> Self::Token {
+        state.pos
     }
 }
 
@@ -217,11 +207,12 @@ fn choose_step(grid: &Grid, start: Pos, dests: &HashSet<Pos>) -> Option<Pos> {
 struct Simulation {
     grid: Grid,
     units: Vec<Unit>,
+    verbose: bool,
 }
 
 impl Simulation {
     fn new(grid: Grid, units: Vec<Unit>) -> Self {
-        Simulation { grid, units }
+        Simulation { grid, units, verbose: false }
     }
 
     fn move_unit(&mut self, uid: UnitID, new_pos: Pos) {
@@ -304,8 +295,10 @@ impl Simulation {
         let mut active_units: Vec<UnitID> = (0..self.units.len()).collect();
         let mut round = 0u32;
         'combat: loop {
-            // println!("-- begin round {} -- {} active units --", round, active_units.len());
-            // println!("{}", grid_string(&grid, &units));
+            if self.verbose {
+                println!("-- begin round {} -- {} active units --", round, active_units.len());
+                println!("{}", grid_string(&self.grid, &self.units));
+            }
 
             // Initiative order for this round.
             active_units.sort_unstable_by_key(|&u| self.units[u].pos);
@@ -324,14 +317,14 @@ impl Simulation {
         let hp_total = self.units.iter().map(|u| u.hp).sum::<u32>();
         let outcome = round * hp_total;
 
-        active_units.retain(|&u| self.units[u].hp > 0);
-        println!("-- final state -- {} active units --", active_units.len());
-        if SHOW_FINAL_GRID {
+        if self.verbose {
+            active_units.retain(|&u| self.units[u].hp > 0);
+            println!("-- final state -- {} active units --", active_units.len());
             println!("{}", grid_string(&self.grid, &self.units));
+            println!("Combat ends after {} full rounds", round);
+            println!("{:?} win with {} total hit points left", self.units[active_units[0]].team, hp_total);
+            println!("Outcome: {} * {} = {}", round, hp_total, outcome);
         }
-        println!("Combat ends after {} full rounds", round);
-        println!("{:?} win with {} total hit points left", self.units[active_units[0]].team, hp_total);
-        println!("Outcome: {} * {} = {}", round, hp_total, outcome);
 
         let final_elves = self.units.iter().filter(|u| u.hp > 0 && u.team == Team::Elf).count();
         let elf_victory = initial_elves == final_elves;
