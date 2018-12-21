@@ -116,7 +116,7 @@ fn deduce_opcodes(valid_sets: &Vec<Vec<bool>>) -> Vec<Opcode> {
     opcodes.iter().map(|o| o.expect("unassigned opcode")).collect::<Vec<_>>()
 }
 
-fn solve(input: &str) -> (u32, u32) {
+fn solve(input: &str) -> (u32, RegType) {
     let parts: Vec<_> = input.split("\n\n\n\n").collect();
     let samples = parts[0];
     let prog = parts[1];

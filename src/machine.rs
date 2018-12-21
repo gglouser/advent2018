@@ -1,4 +1,4 @@
-pub type RegType = u32;
+pub type RegType = u64;
 pub type Val = usize;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -66,4 +66,34 @@ impl Machine {
             self.regs[self.ip] += 1;
         }
     }
+}
+
+pub fn parse_elfcode(s: &str) -> (usize, Vec<Instr>) {
+    let mut lines = s.lines();
+    let ip = lines.next().unwrap().split_whitespace().last().unwrap().parse().unwrap();
+    let instrs = lines.map(|line| {
+        let mut i = line.split_whitespace();
+        let op = match i.next().unwrap() {
+            "addr" => Opcode::Addr,
+            "addi" => Opcode::Addi,
+            "mulr" => Opcode::Mulr,
+            "muli" => Opcode::Muli,
+            "banr" => Opcode::Banr,
+            "bani" => Opcode::Bani,
+            "borr" => Opcode::Borr,
+            "bori" => Opcode::Bori,
+            "setr" => Opcode::Setr,
+            "seti" => Opcode::Seti,
+            "gtir" => Opcode::Gtir,
+            "gtri" => Opcode::Gtri,
+            "gtrr" => Opcode::Gtrr,
+            "eqir" => Opcode::Eqir,
+            "eqri" => Opcode::Eqri,
+            "eqrr" => Opcode::Eqrr,
+            x => panic!("unrecognized instruction: {}", x),
+        };
+        let args: Vec<usize> = i.map(|x| x.parse().unwrap()).collect();
+        Instr(op, args[0], args[1], args[2])
+    }).collect();
+    (ip, instrs)
 }

@@ -1,42 +1,12 @@
 use machine::*;
 
-fn parse_input(s: &str) -> (usize, Vec<Instr>) {
-    let mut lines = s.lines();
-    let ip = lines.next().unwrap().split_whitespace().last().unwrap().parse().unwrap();
-    let instrs = lines.map(|line| {
-        let mut i = line.split_whitespace();
-        let op = match i.next().unwrap() {
-            "addr" => Opcode::Addr,
-            "addi" => Opcode::Addi,
-            "mulr" => Opcode::Mulr,
-            "muli" => Opcode::Muli,
-            "banr" => Opcode::Banr,
-            "bani" => Opcode::Bani,
-            "borr" => Opcode::Borr,
-            "bori" => Opcode::Bori,
-            "setr" => Opcode::Setr,
-            "seti" => Opcode::Seti,
-            "gtir" => Opcode::Gtir,
-            "gtri" => Opcode::Gtri,
-            "gtrr" => Opcode::Gtrr,
-            "eqir" => Opcode::Eqir,
-            "eqri" => Opcode::Eqri,
-            "eqrr" => Opcode::Eqrr,
-            x => panic!("unrecognized instruction: {}", x),
-        };
-        let args: Vec<usize> = i.map(|x| x.parse().unwrap()).collect();
-        Instr(op, args[0], args[1], args[2])
-    }).collect();
-    (ip, instrs)
-}
-
-fn execute(ip: usize, prog: &[Instr]) -> u32 {
+fn execute(ip: usize, prog: &[Instr]) -> RegType {
     let mut mach = Machine::new(ip);
     mach.run(&prog);
     mach.regs[0]
 }
 
-fn fast_part2(ip: usize, prog: &[Instr]) -> u32 {
+fn fast_part2(ip: usize, prog: &[Instr]) -> RegType {
     let mut mach = Machine::new(ip);
     mach.regs[0] = 1;
     while let Some(&instr) = prog.get(mach.regs[ip] as usize) {
@@ -57,8 +27,8 @@ fn fast_part2(ip: usize, prog: &[Instr]) -> u32 {
     s
 }
 
-fn solve(input: &str) -> (u32, u32) {
-    let (ip, prog) = parse_input(input);
+fn solve(input: &str) -> (RegType, RegType) {
+    let (ip, prog) = parse_elfcode(input);
     (execute(ip, &prog), fast_part2(ip, &prog))
 }
 
@@ -85,7 +55,7 @@ seti 9 0 5
 
     #[test]
     fn parsing() {
-        assert_eq!(parse_input(EXAMPLE), (0, vec![
+        assert_eq!(parse_elfcode(EXAMPLE), (0, vec![
             Instr(Opcode::Seti, 5, 0, 1),
             Instr(Opcode::Seti, 6, 0, 2),
             Instr(Opcode::Addi, 0, 1, 0),
@@ -98,7 +68,7 @@ seti 9 0 5
 
     #[test]
     fn example() {
-        let (ip, prog) = parse_input(EXAMPLE);
+        let (ip, prog) = parse_elfcode(EXAMPLE);
         let r0 = execute(ip, &prog);
         assert_eq!(7, r0);
     }
