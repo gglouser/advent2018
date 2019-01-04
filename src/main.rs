@@ -32,7 +32,7 @@ mod day21;
 mod day22;
 mod day23;
 mod day24;
-// mod day25;
+mod day25;
 
 
 struct Config {
@@ -98,7 +98,7 @@ fn main() {
         "day22" => day22::run(&input),
         "day23" => day23::run(&input),
         "day24" => day24::run(&input),
-        // "day25" => day25::run(&input),
+        "day25" => day25::run(&input),
         _ => {
             eprintln!("unknown day");
             process::exit(1);
