@@ -31,7 +31,7 @@ mod day20;
 mod day21;
 mod day22;
 mod day23;
-// mod day24;
+mod day24;
 // mod day25;
 
 
@@ -97,7 +97,7 @@ fn main() {
         "day21" => day21::run(&input),
         "day22" => day22::run(&input),
         "day23" => day23::run(&input),
-        // "day24" => day24::run(&input),
+        "day24" => day24::run(&input),
         // "day25" => day25::run(&input),
         _ => {
             eprintln!("unknown day");
