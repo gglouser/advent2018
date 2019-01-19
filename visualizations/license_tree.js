@@ -170,7 +170,7 @@ function init() {
     window.requestAnimationFrame(() => {
         canvas.width = canvas.clientWidth;
         canvas.height = canvas.clientHeight;
-        view.draw()
+        view.draw();
     });
 
     // On window resize, fix canvas size and redraw.

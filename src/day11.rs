@@ -15,7 +15,7 @@ fn generate_grid(ser_no: i32) -> Vec<Vec<i32>> {
     ).collect()
 }
 
-fn partial_sums(grid: &Vec<Vec<i32>>) -> Vec<Vec<i32>> {
+fn partial_sums(grid: &[Vec<i32>]) -> Vec<Vec<i32>> {
     let mut p = vec![vec![0; 301]; 301];
     for y in 1..=300 {
         for x in 1..=300 {
@@ -25,7 +25,7 @@ fn partial_sums(grid: &Vec<Vec<i32>>) -> Vec<Vec<i32>> {
     p
 }
 
-fn find_most_power(psum_grid: &Vec<Vec<i32>>, window: usize) -> (i32, (usize, usize)) {
+fn find_most_power(psum_grid: &[Vec<i32>], window: usize) -> (i32, (usize, usize)) {
     (0..=300-window).flat_map(|y|
         (0..=(300-window)).map(move |x| {
             let a = psum_grid[y+window][x+window];

@@ -36,7 +36,7 @@ where
     while let Some(Reverse(st)) = queue.pop() {
         if searcher.is_goal(&st) { return Some(st); }
         if visited.insert(searcher.token(&st)) {
-            queue.extend(searcher.branch(&st).into_iter().map(|child| Reverse(child)));
+            queue.extend(searcher.branch(&st).into_iter().map(Reverse));
         }
     }
     None

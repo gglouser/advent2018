@@ -23,7 +23,7 @@ fn init_ready(task_spec: &[(u8, u8)]) -> BinaryHeap<Reverse<u8>> {
 fn init_pending(task_spec: &[(u8, u8)]) -> HashMap<u8, HashSet<u8>> {
     let mut pending = HashMap::new();
     for &(pre, dep) in task_spec.iter() {
-        (*pending.entry(dep).or_insert(HashSet::new())).insert(pre);
+        (*pending.entry(dep).or_insert_with(HashSet::new)).insert(pre);
     }
     pending
 }

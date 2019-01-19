@@ -1,5 +1,5 @@
 use std::collections::HashSet;
-use machine::*;
+use crate::machine::*;
 
 fn is_r0_test(mach: &Machine, instr: Instr) -> Option<RegType> {
     match instr {
@@ -41,9 +41,9 @@ fn fast_part2() -> u64  {
     let mut last_a = 0;
     loop {
         let mut b = a | 0x10000;
-        a = 0xc154d6;
+        a = 0x00c1_54d6;
         while b > 0 {
-            a = (((a + (b & 0xff)) & 0xffffff) * 65899) & 0xffffff;
+            a = (((a + (b & 0xff)) & 0x00ff_ffff) * 65899) & 0x00ff_ffff;
             b /= 256;
         }
         if !values.insert(a) {

@@ -70,7 +70,7 @@ fn parse_modifiers(mods: Option<Match>) -> (Vec<String>, Vec<String>) {
         for part in parts {
             let subp: Vec<&str> = part.split(" to ").collect();
             let modifier = subp[0];
-            let dmg_types = subp[1].split(", ").map(|t| String::from(t));
+            let dmg_types = subp[1].split(", ").map(String::from);
             if modifier == "weak" {
                 weak.extend(dmg_types);
             } else if modifier == "immune" {

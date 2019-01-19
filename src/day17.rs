@@ -41,14 +41,14 @@ enum Square {
 }
 
 impl Square {
-    fn is_open(&self) -> bool {
+    fn is_open(self) -> bool {
         match self {
             Square::Sand | Square::WetSand => true,
             _ => false,
         }
     }
 
-    fn is_wet(&self) -> bool {
+    fn is_wet(self) -> bool {
         match self {
             Square::Water | Square::WetSand => true,
             _ => false,
@@ -58,7 +58,7 @@ impl Square {
 
 type Grid = Vec<Vec<Square>>;
 
-fn show_grid(grid: &Grid) {
+fn show_grid(grid: &[Vec<Square>]) {
     for row in grid.iter() {
         let line: String = row.iter().map(|s| match s {
             Square::Sand => '.',

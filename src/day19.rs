@@ -1,4 +1,4 @@
-use machine::*;
+use crate::machine::*;
 
 fn execute(ip: usize, prog: &[Instr]) -> RegType {
     let mut mach = Machine::new(ip);

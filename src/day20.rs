@@ -15,7 +15,7 @@ impl Add for Pos {
 enum Dir { N, S, E, W }
 
 impl Dir {
-    fn step(&self) -> Pos {
+    fn step(self) -> Pos {
         match self {
             Dir::N => Pos(-1, 0),
             Dir::S => Pos( 1, 0),
@@ -24,7 +24,7 @@ impl Dir {
         }
     }
 
-    fn opposite(&self) -> Dir {
+    fn opposite(self) -> Dir {
         match self {
             Dir::N => Dir::S,
             Dir::S => Dir::N,

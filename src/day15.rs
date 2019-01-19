@@ -1,13 +1,13 @@
 use std::cmp::Ordering;
 use std::collections::HashSet;
 use std::ops::{Index, IndexMut};
-use search::*;
+use crate::search::*;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 struct Pos(i32, i32);
 
 impl Pos {
-    fn neighbors(&self) -> impl Iterator<Item=Pos> {
+    fn neighbors(self) -> impl Iterator<Item=Pos> {
         vec![
             Pos(self.0 - 1, self.1),
             Pos(self.0,     self.1 - 1),
@@ -16,7 +16,7 @@ impl Pos {
         ].into_iter()
     }
 
-    fn dist(&self, other: &Pos) -> u32 {
+    fn dist(self, other: Pos) -> u32 {
         (self.0 - other.0).abs() as u32 + (self.1 - other.1).abs() as u32
     }
 }
@@ -50,7 +50,7 @@ impl IndexMut<Pos> for Grid {
 enum Team { Elf, Goblin }
 
 impl Team {
-    fn symbol(&self) -> char {
+    fn symbol(self) -> char {
         match self {
             Team::Elf => 'E',
             Team::Goblin => 'G',
@@ -175,7 +175,7 @@ impl<'a> SearchSpec for PathSearch<'a> {
             .filter(|&n| self.grid[n] == GridContents::Open)
             .map(|pos| {
                 let (tdist, &target) = self.dests.iter()
-                    .map(|d| (pos.dist(d), d))
+                    .map(|d| (pos.dist(*d), d))
                     .min().unwrap();
                 let steps = state.steps + 1;
                 PathSearchState {
@@ -183,7 +183,7 @@ impl<'a> SearchSpec for PathSearch<'a> {
                     steps,
                     cost: steps + tdist,
                     target,
-                    first_step: state.first_step.or(Some(pos)),
+                    first_step: state.first_step.or_else(|| Some(pos)),
                 }
             }).collect()
     }
@@ -202,6 +202,13 @@ fn choose_step(grid: &Grid, start: Pos, dests: &HashSet<Pos>) -> Option<Pos> {
     let searcher = PathSearch { grid, dests };
     best_first_search(searcher, PathSearchState::new(start))
         .map(|st| st.first_step.expect("no first step"))
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum FindMoveResult {
+    NoTargets,
+    NoPath,
+    Step(Pos),
 }
 
 struct Simulation {
@@ -234,21 +241,23 @@ impl Simulation {
         }
     }
 
-    // Returns None if no targets exist, or Some(step) for optional next step if targets exist.
-    fn find_move(&self, uid: UnitID) -> Option<Option<Pos>> {
+    fn find_move(&self, uid: UnitID) -> FindMoveResult {
         // Identify targets.
         let mover = &self.units[uid];
         let targets: Vec<&Unit> = self.units.iter()
             .filter(|&target| target.hp != 0 && target.team != mover.team)
             .collect();
-        if targets.is_empty() { return None; }
+        if targets.is_empty() { return FindMoveResult::NoTargets; }
 
         // Identify open squares in range of (adjacent to) targets.
         let adj_squares: HashSet<Pos> = targets.into_iter()
             .flat_map(|target| target.pos.neighbors())
             .filter(|&pos| self.grid[pos] == GridContents::Open)
             .collect();
-        Some(choose_step(&self.grid, mover.pos, &adj_squares))
+        match choose_step(&self.grid, mover.pos, &adj_squares) {
+            Some(step) => FindMoveResult::Step(step),
+            None => FindMoveResult::NoPath,
+        }
     }
 
     fn find_attack_target(&self, attacker: UnitID) -> Option<UnitID> {
@@ -266,15 +275,14 @@ impl Simulation {
         // I. Move
         let mut attack_target = self.find_attack_target(uid);
         if attack_target.is_none() {
-            if let Some(step) = self.find_move(uid) {
-                // Try to move and reacquire attack target.
-                if let Some(new_pos) = step {
+            match self.find_move(uid) {
+                FindMoveResult::NoTargets => { return true; },  // No targets remain; combat ends.
+                FindMoveResult::NoPath => (),                   // Targets exist but no path, so do nothing.
+                FindMoveResult::Step(new_pos) => {
+                    // Move and reacquire attack target.
                     self.move_unit(uid, new_pos);
                     attack_target = self.find_attack_target(uid);
-                }
-            } else {
-                // No targets remain; combat ends.
-                return true;
+                },
             }
         }
 
@@ -294,7 +302,7 @@ impl Simulation {
         let initial_elves = self.units.iter().filter(|u| u.team == Team::Elf).count();
         let mut active_units: Vec<UnitID> = (0..self.units.len()).collect();
         let mut round = 0u32;
-        'combat: loop {
+        loop {
             if self.verbose {
                 println!("-- begin round {} -- {} active units --", round, active_units.len());
                 println!("{}", grid_string(&self.grid, &self.units));
@@ -486,7 +494,7 @@ mod tests {
 #######
 ");
         let sim = Simulation::new(grid, units);
-        assert_eq!(Some(Some(Pos(1,3))), sim.find_move(0) )
+        assert_eq!(FindMoveResult::Step(Pos(1,3)), sim.find_move(0))
     }
 
     #[test]
@@ -499,7 +507,7 @@ mod tests {
 ########
 ");
         let sim = Simulation::new(grid, units);
-        assert_eq!(Some(Some(Pos(1,2))), sim.find_move(0) )
+        assert_eq!(FindMoveResult::Step(Pos(1,2)), sim.find_move(0))
     }
 
     #[test]
@@ -514,7 +522,7 @@ mod tests {
 ######
 ");
         let sim = Simulation::new(grid, units);
-        assert_eq!(Some(Some(Pos(2,2))), sim.find_move(0) )
+        assert_eq!(FindMoveResult::Step(Pos(2,2)), sim.find_move(0))
     }
 
     #[test]

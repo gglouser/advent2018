@@ -21,7 +21,7 @@ fn process_events(events: &[(&str, &str)]) -> HashMap<u32, Vec<(u32,u32)>> {
         } else if *event == "wakes up" {
             let c = re_minute.captures(time).unwrap();
             let wake_time = c[1].parse().unwrap();
-            let guard = guards.entry(cur_guard).or_insert(vec![]);
+            let guard = guards.entry(cur_guard).or_insert_with(|| vec![]);
             guard.push((sleep_time, wake_time));
         } else {
             panic!("unknown event: {}", event);

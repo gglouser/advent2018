@@ -1,5 +1,5 @@
 use regex::Regex;
-use machine::*;
+use crate::machine::*;
 
 impl Opcode {
     fn from_usize(opcode: usize) -> Self {
@@ -88,9 +88,11 @@ fn evaluate_samples(samples: &[Sample]) -> (u32, Vec<Vec<bool>>) {
         }
     }
 
-    for i in 0..16 {
-        println!("opcode {:2} could be {}", i, valid_sets[i].iter()
-            .map(|&x| if x {'?'} else {'.'}).collect::<String>()
+    for (i, valid_set) in valid_sets.iter().enumerate() {
+        println!(
+            "opcode {:2} could be {}",
+            i,
+            valid_set.iter().map(|&x| if x {'?'} else {'.'}).collect::<String>()
         );
     }
 
@@ -99,8 +101,8 @@ fn evaluate_samples(samples: &[Sample]) -> (u32, Vec<Vec<bool>>) {
 
 // In general, this is a perfect matching problem on an unweighted bipartite graph.
 // We can assume there is a unique solution that isn't too hard to deduce.
-fn deduce_opcodes(valid_sets: &Vec<Vec<bool>>) -> Vec<Opcode> {
-    let mut valid = valid_sets.clone();
+fn deduce_opcodes(valid_sets: &[Vec<bool>]) -> Vec<Opcode> {
+    let mut valid = valid_sets.to_owned();
     let mut opcodes = vec![None; 16];
 
     // Find an unassigned opcode with only one valid option.

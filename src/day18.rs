@@ -27,14 +27,15 @@ impl From<Square> for char {
     }
 }
 
-type Grid = Vec<Vec<Square>>;
+#[derive(Clone, PartialEq, Eq, Hash)]
+struct Grid(Vec<Vec<Square>>);
 
 fn parse_input(s: &str) -> Grid {
-    s.lines().map(|line| line.chars().map(|c| Square::from(c)).collect()).collect()
+    Grid(s.lines().map(|line| line.chars().map(Square::from).collect()).collect())
 }
 
 fn show_grid(grid: &Grid) -> String {
-    grid.iter().map(|row|
+    grid.0.iter().map(|row|
         row.iter().map(|&s| char::from(s)).collect::<String>() + "\n"
     ).collect()
 }
@@ -42,11 +43,11 @@ fn show_grid(grid: &Grid) -> String {
 // Create a table of partial counts.
 // Add extra two rows and two columns to simulate border of open squares.
 fn partial_counts(grid: &Grid, kind: Square) -> Vec<Vec<usize>> {
-    let row_len = grid[0].len();
-    let mut p = vec![vec![0; row_len+3]; grid.len()+2];
-    for row in 0..grid.len() {
+    let row_len = grid.0[0].len();
+    let mut p = vec![vec![0; row_len+3]; grid.0.len()+2];
+    for row in 0..grid.0.len() {
         for col in 0..row_len {
-            let here = (grid[row][col] == kind) as usize;
+            let here = (grid.0[row][col] == kind) as usize;
             p[row+2][col+2] = here + p[row+1][col+2] + p[row+2][col+1] - p[row+1][col+1];
         }
         p[row+2][row_len+2] = p[row+2][row_len+1];
@@ -56,7 +57,7 @@ fn partial_counts(grid: &Grid, kind: Square) -> Vec<Vec<usize>> {
     p
 }
 
-fn get_count(partials: &Vec<Vec<usize>>, r: usize, c: usize, h: usize, w: usize) -> usize {
+fn get_count(partials: &[Vec<usize>], r: usize, c: usize, h: usize, w: usize) -> usize {
     partials[r+h][c+w] + partials[r][c] - partials[r+h][c] - partials[r][c+w]
 }
 
@@ -64,19 +65,18 @@ fn step(grid: &Grid) -> Grid {
     let tree_counts = partial_counts(&grid, Square::Trees);
     let yard_counts = partial_counts(&grid, Square::Lumberyard);
     let mut next = grid.clone();
-    let row_len = grid[0].len();
-    for row in 0..grid.len() {
+    let row_len = grid.0[0].len();
+    for row in 0..grid.0.len() {
         for col in 0..row_len {
             let trees = get_count(&tree_counts, row, col, 3, 3);
             let yards = get_count(&yard_counts, row, col, 3, 3);
-            match grid[row][col] {
-                Square::Open => if trees >= 3 { next[row][col] = Square::Trees; },
-                Square::Trees => if yards >= 3 { next[row][col] = Square::Lumberyard; },
-                Square::Lumberyard => if trees < 1 || yards < 2 { next[row][col] = Square::Open; },
+            match grid.0[row][col] {
+                Square::Open => if trees >= 3 { next.0[row][col] = Square::Trees; },
+                Square::Trees => if yards >= 3 { next.0[row][col] = Square::Lumberyard; },
+                Square::Lumberyard => if trees < 1 || yards < 2 { next.0[row][col] = Square::Open; },
             }
         }
     }
-
     next
 }
 
@@ -95,7 +95,7 @@ fn iterate_long(initial_state: &Grid, minutes: usize) -> Grid {
     for t in 1.. {
         state = step(&state);
         if state_mem.contains_key(&state) {
-            let t0 = *state_mem.get(&state).unwrap();
+            let t0 = state_mem[&state];
             // println!("found repeat, {} == {}", t0, t);
             let period = t - t0;
             let tn = (minutes - t0) % period + t0;
@@ -109,8 +109,8 @@ fn iterate_long(initial_state: &Grid, minutes: usize) -> Grid {
 }
 
 fn resource_value(grid: &Grid) -> usize {
-    let trees = grid.iter().flat_map(|row| row.iter()).filter(|&&s| s == Square::Trees).count();
-    let yards = grid.iter().flat_map(|row| row.iter()).filter(|&&s| s == Square::Lumberyard).count();
+    let trees = grid.0.iter().flat_map(|row| row.iter()).filter(|&&s| s == Square::Trees).count();
+    let yards = grid.0.iter().flat_map(|row| row.iter()).filter(|&&s| s == Square::Lumberyard).count();
     trees * yards
 }
 

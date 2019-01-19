@@ -34,7 +34,7 @@ impl Node {
     }
 
     fn value(&self) -> u32 {
-        if self.children.len() > 0 {
+        if !self.children.is_empty() {
             let subvals = self.children.iter().map(|c| c.value()).collect::<Vec<_>>();
             self.metadata.iter().map(|&i| subvals.get(i as usize - 1).unwrap_or(&0)).sum()
         } else {

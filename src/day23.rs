@@ -1,7 +1,7 @@
 use regex::Regex;
 use std::ops::Add;
 use std::cmp::Ordering;
-use search::*;
+use crate::search::*;
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 struct Pos(i32, i32, i32);
@@ -94,9 +94,9 @@ struct CubeSearchState {
 
 impl Ord for CubeSearchState {
     fn cmp(&self, other: &Self) -> Ordering {
-        other.count.cmp(&self.count).then(
-            self.cube.origin_dist().cmp(&other.cube.origin_dist()).then(
-                self.cube.side.cmp(&other.cube.side)))
+        other.count.cmp(&self.count)
+            .then(self.cube.origin_dist().cmp(&other.cube.origin_dist()))
+            .then(self.cube.side.cmp(&other.cube.side))
     }
 }
 

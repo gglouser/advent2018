@@ -32,7 +32,7 @@ fn is_plant(b: u8) -> bool {
 // }
 
 fn plant_machine(initial_state: &[u8], rules: &HashMap<&[u8],u8>, gens: usize) -> (Vec<u8>, i64) {
-    let mut state = initial_state.iter().cloned().collect::<Vec<_>>();
+    let mut state = initial_state.to_vec();
     let mut pos: i64 = 0;
     for _ in 0..gens {
         let first_plant = state.iter().position(|&p| is_plant(p)).unwrap();

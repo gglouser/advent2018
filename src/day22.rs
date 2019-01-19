@@ -1,7 +1,7 @@
 use regex::Regex;
 use std::ops::{Add, Index};
 use std::cmp::Ordering;
-use search::*;
+use crate::search::*;
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 struct Pos(i32, i32);
@@ -14,7 +14,7 @@ impl Add for Pos {
 }
 
 impl Pos {
-    fn dist(&self, other: Pos) -> u32 {
+    fn dist(self, other: Pos) -> u32 {
         ((self.0 - other.0).abs() + (self.1 - other.1).abs()) as u32
     }
 }
@@ -97,7 +97,7 @@ fn gen_terrain(width: usize, height: usize, depth: usize, target: Pos) -> Grid {
 enum Gear { Torch, Climbing, Neither }
 
 impl Gear {
-    fn compatible(&self, rtype: RType) -> bool {
+    fn compatible(self, rtype: RType) -> bool {
         match (self, rtype) {
             (Gear::Torch, RType::Wet)
             | (Gear::Climbing, RType::Narrow)
@@ -177,8 +177,8 @@ fn solve(input: &str) -> (u32, u32) {
     let maze = gen_terrain(maze_w, maze_h, depth, target);
     // println!("{}", maze._show());
 
-    let risk_level = maze.0[..target.1 as usize + 1].iter()
-        .flat_map(|row| row[..target.0 as usize + 1].iter()
+    let risk_level = maze.0[..=target.1 as usize].iter()
+        .flat_map(|row| row[..=target.0 as usize].iter()
             .map(|&t| t as u32)
         ).sum();
 

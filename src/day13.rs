@@ -7,19 +7,19 @@ struct Pos(i32, i32);
 struct Heading(i32, i32);
 
 impl Heading {
-    fn turn_left(&self) -> Self {
+    fn turn_left(self) -> Self {
         Heading(self.1, -self.0)
     }
 
-    fn turn_right(&self) -> Self {
+    fn turn_right(self) -> Self {
         Heading(-self.1, self.0)
     }
 
-    fn curve_pos(&self) -> Self {
+    fn curve_pos(self) -> Self {
         Heading(self.1, self.0)
     }
 
-    fn curve_neg(&self) -> Self {
+    fn curve_neg(self) -> Self {
         Heading(-self.1, -self.0)
     }
 }
@@ -66,7 +66,11 @@ impl Cart {
     }
 }
 
-type Grid = Vec<Vec<u8>>;
+#[derive(Clone)]
+struct Simulation {
+    grid: Vec<Vec<u8>>,
+    carts: Vec<Cart>,
+}
 
 fn parse_pos(c: u8) -> (u8, Option<Heading>) {
     match c {
@@ -78,7 +82,7 @@ fn parse_pos(c: u8) -> (u8, Option<Heading>) {
     }
 }
 
-fn parse_input(s: &str) -> (Grid, Vec<Cart>) {
+fn parse_input(s: &str) -> Simulation {
     let mut carts = vec![];
     let grid = s.lines().enumerate().map(|(y, line)|
         line.bytes().enumerate().map(|(x, c)| {
@@ -89,60 +93,60 @@ fn parse_input(s: &str) -> (Grid, Vec<Cart>) {
             t
         }).collect()
     ).collect();
-    (grid, carts)
+    Simulation { grid, carts }
 }
 
-fn move_carts(carts: &mut Vec<Cart>, grid: &Grid) -> Vec<Pos> {
-    let mut crashes = vec![];
-    carts.sort_unstable_by_key(|c| (c.pos.1, c.pos.0));
-    for i in 0..carts.len() {
-        if carts[i].dead { continue; }
-        let new_pos = carts[i].next_pos();
-        if let Some(j) = carts.iter().position(|c2| !c2.dead && c2.pos == new_pos) {
-            crashes.push(new_pos);
-            carts[i].dead = true;
-            carts[j].dead = true;
-        } else {
-            carts[i].change_heading(grid[new_pos.1 as usize][new_pos.0 as usize]);
-            carts[i].pos = new_pos;
+impl Simulation {
+    fn move_carts(&mut self) -> Vec<Pos> {
+        let mut crashes = vec![];
+        self.carts.sort_unstable_by_key(|c| (c.pos.1, c.pos.0));
+        for i in 0..self.carts.len() {
+            if self.carts[i].dead { continue; }
+            let new_pos = self.carts[i].next_pos();
+            if let Some(j) = self.carts.iter().position(|c2| !c2.dead && c2.pos == new_pos) {
+                crashes.push(new_pos);
+                self.carts[i].dead = true;
+                self.carts[j].dead = true;
+            } else {
+                self.carts[i].change_heading(self.grid[new_pos.1 as usize][new_pos.0 as usize]);
+                self.carts[i].pos = new_pos;
+            }
         }
+        crashes
     }
-    return crashes;
-}
 
-fn find_first_crash(grid: &Grid, carts: &[Cart]) -> Pos {
-    let mut carts = carts.to_vec();
-    loop {
-        let crashes = move_carts(&mut carts, &grid);
-        if crashes.len() > 0 {
-            return crashes[0];
+    fn find_first_crash(&mut self) -> Pos {
+        loop {
+            let crashes = self.move_carts();
+            if !crashes.is_empty() {
+                return crashes[0];
+            }
         }
     }
-}
 
-fn find_last_cart(grid: &Grid, carts: &[Cart]) -> Pos {
-    let mut carts = carts.to_vec();
-    let mut num_carts = carts.len();
-    // println!("started with {} carts", num_carts);
-    for _tick in 0.. {
-        // println!("tick {}", _tick);
-        let crashes = move_carts(&mut carts, &grid);
-        num_carts -= 2*crashes.len();
-        if num_carts == 1 {
-            // println!("stopping at tick {}", _tick);
-            return carts.iter().find(|c| !c.dead).unwrap().pos;
+    fn find_last_cart(&mut self) -> Pos {
+        let mut num_carts = self.carts.len();
+        // println!("started with {} carts", num_carts);
+        for _tick in 0.. {
+            // println!("tick {}", _tick);
+            let crashes = self.move_carts();
+            num_carts -= 2*crashes.len();
+            if num_carts == 1 {
+                // println!("stopping at tick {}", _tick);
+                return self.carts.iter().find(|c| !c.dead).unwrap().pos;
+            }
         }
+        unreachable!()
     }
-    unreachable!()
 }
 
 fn solve(input: &str) -> (String, String) {
-    let (grid, carts) = parse_input(input);
+    let sim = parse_input(input);
 
-    let first_crash = find_first_crash(&grid, &carts);
+    let first_crash = sim.clone().find_first_crash();
     let first_crash = format!("{},{}", first_crash.0, first_crash.1);
 
-    let last_cart = find_last_cart(&grid, &carts);
+    let last_cart = sim.clone().find_last_cart();
     let last_cart = format!("{},{}", last_cart.0, last_cart.1);
 
     (first_crash, last_cart)
@@ -179,10 +183,10 @@ r"/>-<\
 
     #[test]
     fn parsing() {
-        let (grid, carts) = parse_input(EXAMPLE);
-        assert_eq!(grid[0][2], b'-');
-        assert_eq!(grid[3][9], b'|');
-        assert_eq!(carts, vec![
+        let sim = parse_input(EXAMPLE);
+        assert_eq!(sim.grid[0][2], b'-');
+        assert_eq!(sim.grid[3][9], b'|');
+        assert_eq!(sim.carts, vec![
             Cart { pos: Pos(2,0), heading: Heading(1,0), turns: 0, dead: false },
             Cart { pos: Pos(9,3), heading: Heading(0,1), turns: 0, dead: false },
             ]);
@@ -190,15 +194,15 @@ r"/>-<\
 
     #[test]
     fn example() {
-        let (grid, carts) = parse_input(EXAMPLE);
-        let first_crash = find_first_crash(&grid, &carts);
+        let mut sim = parse_input(EXAMPLE);
+        let first_crash = sim.find_first_crash();
         assert_eq!(Pos(7,3), first_crash);
     }
 
     #[test]
     fn example2() {
-        let (grid, carts) = parse_input(EXAMPLE2);
-        let last_cart = find_last_cart(&grid, &carts);
+        let mut sim = parse_input(EXAMPLE2);
+        let last_cart = sim.find_last_cart();
         assert_eq!(Pos(6,4), last_cart);
     }
 

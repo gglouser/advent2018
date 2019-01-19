@@ -31,10 +31,9 @@ fn solve(input: &str) -> (usize, usize) {
     let mut clean_claims = HashSet::new();
     for claim in claims.iter() {
         let mut is_clean = true;
-        for row in claim.top..claim.top+claim.height {
-            for col in claim.left..claim.left+claim.width {
-                let spot = &mut grid[row][col];
-                if spot.len() > 0 {
+        for row in grid.iter_mut().skip(claim.top).take(claim.height) {
+            for spot in row.iter_mut().skip(claim.left).take(claim.width) {
+                if !spot.is_empty() {
                     clean_claims.remove(&spot[0]);
                     is_clean = false;
                 }
